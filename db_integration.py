@@ -10,9 +10,11 @@ CUR = CONN.cursor()
 def save_results(Kategori_Adı, RES):
     TABLE_NAME = Kategori_Adı.replace(' ', '_')
     CUR.execute("CREATE TABLE IF NOT EXISTS {}(DATA_ASIN text unique,  PRODUCT_TITLE text, PRODUCT_LINK text, CURRENCY text, DISCOUNT integer, OLD_PRODUCT_PRICE integer, NEW_PRODUCT_PRICE integer)".format(TABLE_NAME))
+    time.sleep(1)
     CUR.execute("UPDATE {} SET OLD_PRODUCT_PRICE = NEW_PRODUCT_PRICE".format(TABLE_NAME))
     for PRODUCT in RES[0]:
-        CUR.execute('INSERT OR REPLACE INTO {}(DATA_ASIN, PRODUCT_TITLE, PRODUCT_LINK, NEW_PRODUCT_PRICE, CURRENCY) VALUES(?,?,?,?,?)'.format(TABLE_NAME), (PRODUCT["data-asin"], PRODUCT["title"], PRODUCT["link"], PRODUCT["price"], PRODUCT["price_symbol"]))
+        CUR.execute('INSERT OR REPLACE INTO {}(DATA_ASIN, PRODUCT_TITLE, PRODUCT_LINK, NEW_PRODUCT_PRICE) VALUES(?,?,?,?)'.format(TABLE_NAME), (PRODUCT["data-asin"], PRODUCT["title"], PRODUCT["link"], PRODUCT["price"]))
+
     CUR.execute("UPDATE {} SET DISCOUNT =(SELECT (NEW_PRODUCT_PRICE-OLD_PRODUCT_PRICE)/100 FROM {})".format(TABLE_NAME, TABLE_NAME))
 
 def main():
