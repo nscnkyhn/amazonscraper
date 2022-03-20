@@ -6,24 +6,28 @@ import requests
 from bs4 import BeautifulSoup
 
 def get_HEADERS():
-    UA_LIST = [
+    """     UA_LIST = [
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.1 Safari/605.1.15',
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0',
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36',
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:77.0) Gecko/20100101 Firefox/77.0',
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36',
-        ]
+        ] """
+    UA_LIST = []
+    with open('user-agents.txt','r') as USER_AGENTS:
+        for USER_AGENT in USER_AGENTS:
+            UA_LIST.append(USER_AGENT[:-2])
     HEADERS = {
         'authority': 'www.amazon.com.tr',
         'method': 'GET',
-        'path': '/rd/uedata?at&v=0.223517.0&id=M6NAN2DTPCJXG008A7QB&m=1&sc=csa:lcp&lcp=503&pc=2255&at=2255&t=1647548558895&pty=Search&spty=List&pti=undefined&tid=JJJEYP079ZPSWBKQEAE8&aftb=1',
+        #'path': '/rd/uedata?at&v=0.223517.0&id=M6NAN2DTPCJXG008A7QB&m=1&sc=csa:lcp&lcp=503&pc=2255&at=2255&t=1647548558895&pty=Search&spty=List&pti=undefined&tid=JJJEYP079ZPSWBKQEAE8&aftb=1',
         'scheme': 'https',
         'accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
         'accept-encoding': 'gzip, deflate, br',
         'accept-language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
-        'downlink': '5',
+        #'downlink': '5',
         'ect': '4g',
-        'rtt': '100',
+        #'rtt': '100',
         'sec-ch-ua': '"Opera GX";v="83", "Chromium";v="97", ";Not A Brand";v="99"',
         'sec-ch-ua-mobile': '?0',
         'sec-ch-ua-platform': '"Windows"',
@@ -36,8 +40,13 @@ def get_HEADERS():
 
 def number_of_pages(URL):
     RESPONSE = requests.get(URL, headers=get_HEADERS())
-    TOTAL_NUMBER_OF_PAGES = BeautifulSoup(RESPONSE.text, "html.parser").find('span', class_='s-pagination-item s-pagination-disabled').text
-    return int(TOTAL_NUMBER_OF_PAGES)
+    try:
+        TOTAL_NUMBER_OF_PAGES = BeautifulSoup(RESPONSE.text, "html.parser").find('span', class_='s-pagination-item s-pagination-disabled').text
+        del RESPONSE
+        return int(TOTAL_NUMBER_OF_PAGES)
+    except:
+        del RESPONSE
+        number_of_pages(URL)
 
 def generating_urls(URL, TOTAL_NUMBER_OF_PAGES):
     #print("Kullanılacak URL'ler üretiliyor.")
@@ -55,6 +64,7 @@ async def async_main():
         for FINAL_URL in URLS:
             async with SESSION.get(FINAL_URL) as RESPONSE:
                 RESULTS.append(await RESPONSE.text())
+            print(RESPONSE.status)
         return RESULTS
 
 
@@ -132,7 +142,7 @@ def main(URL):
 
     PRODUCT_COUNT = str(len(PRODUCTS))
     del URLS, DATA, CARDS, TASKS_
-    return PRODUCTS, PRODUCT_COUNT, str(total_time)
+    return PRODUCTS, PRODUCT_COUNT, str(round(total_time, 0))
 
 if __name__ == "__main__":
     #URL = "https://www.amazon.com.tr/s?i=pets&rh=n%3A20684004031&fs=true&page=2&qid=1647450852&ref=sr_pg_2"
