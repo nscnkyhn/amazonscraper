@@ -99,7 +99,7 @@ def processing_cards(CARDS):
             pass
         else:
             PRICE = PRICE_WHOLE + "." + PRICE_FRACTION
-            DATA = {'data-asin': DATA_ASIN, 'title': TITLE, 'link': LINK, 'price': 1234, 'price_symbol': PRICE_SYMBOL}
+            DATA = {'data-asin': DATA_ASIN, 'title': TITLE, 'link': LINK, 'price': PRICE, 'price_symbol': PRICE_SYMBOL}
             PRODUCTS.append(DATA)
 
 def main(URL):
