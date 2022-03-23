@@ -17,8 +17,7 @@ def save_results(Kategori_Adı, RES):
             CUR.execute('INSERT OR REPLACE INTO {}(DATA_ASIN, PRODUCT_TITLE, PRODUCT_LINK, CURRENCY, NEW_PRODUCT_PRICE) VALUES(?,?,?,?,?)'.format(TABLE_NAME), (PRODUCT["data-asin"], PRODUCT["title"], PRODUCT["link"], PRODUCT["price_symbol"], PRODUCT["price"]))
         else:
             CUR.execute('UPDATE {} SET NEW_PRODUCT_PRICE = "{}" WHERE DATA_ASIN = "{}"'.format(TABLE_NAME, PRODUCT["price"], PRODUCT["data-asin"]))
-    CUR.execute('UPDATE {} SET DISCOUNT = round((OLD_PRODUCT_PRICE-NEW_PRODUCT_PRICE)/100,0)'.format(TABLE_NAME))  
-    CONN.commit()
+    CUR.execute('UPDATE {} SET DISCOUNT = round(((OLD_PRODUCT_PRICE-NEW_PRODUCT_PRICE)/OLD_PRODUCT_PRICE)*100, 0)'.format(TABLE_NAME))  
 
 
 def main():
@@ -36,3 +35,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    CONN.commit()

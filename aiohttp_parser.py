@@ -1,9 +1,14 @@
 import time
 import asyncio
+from wsgiref import headers
 import aiohttp
 import random
 import requests
 from bs4 import BeautifulSoup
+
+aa=[]
+bb=[]
+xxx=1
 
 def get_HEADERS():
     """     UA_LIST = [
@@ -20,14 +25,11 @@ def get_HEADERS():
     HEADERS = {
         'authority': 'www.amazon.com.tr',
         'method': 'GET',
-        #'path': '/rd/uedata?at&v=0.223517.0&id=M6NAN2DTPCJXG008A7QB&m=1&sc=csa:lcp&lcp=503&pc=2255&at=2255&t=1647548558895&pty=Search&spty=List&pti=undefined&tid=JJJEYP079ZPSWBKQEAE8&aftb=1',
         'scheme': 'https',
         'accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
         'accept-encoding': 'gzip, deflate, br',
         'accept-language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
-        #'downlink': '5',
         'ect': '4g',
-        #'rtt': '100',
         'sec-ch-ua': '"Opera GX";v="83", "Chromium";v="97", ";Not A Brand";v="99"',
         'sec-ch-ua-mobile': '?0',
         'sec-ch-ua-platform': '"Windows"',
@@ -39,14 +41,14 @@ def get_HEADERS():
     return HEADERS
 
 def number_of_pages(URL):
-    RESPONSE = requests.get(URL, headers=get_HEADERS())
-    try:
-        TOTAL_NUMBER_OF_PAGES = BeautifulSoup(RESPONSE.text, "html.parser").find('span', class_='s-pagination-item s-pagination-disabled').text
-        del RESPONSE
-        return int(TOTAL_NUMBER_OF_PAGES)
-    except:
-        del RESPONSE
-        number_of_pages(URL)
+    while True:
+        RESPONSE = requests.get(URL, headers=get_HEADERS())
+        REF = BeautifulSoup(RESPONSE.text, "html.parser").find('a', class_='s-pagination-next')
+        if RESPONSE.status_code == 200 and REF != None:
+            TOTAL_NUMBER_OF_PAGES = REF.previous_sibling.text
+            return int(TOTAL_NUMBER_OF_PAGES)
+        else:
+            del RESPONSE
 
 def generating_urls(URL, TOTAL_NUMBER_OF_PAGES):
     #print("Kullanılacak URL'ler üretiliyor.")
@@ -59,20 +61,39 @@ def generating_urls(URL, TOTAL_NUMBER_OF_PAGES):
         URLS.append(URL_PART_1 + str(i) + URL_PART_2)
     del URL_PART_1, URL_PART_2
 
-async def async_main():
-    async with aiohttp.ClientSession(headers=get_HEADERS()) as SESSION:
-        for FINAL_URL in URLS:
-            async with SESSION.get(FINAL_URL) as RESPONSE:
-                RESULTS.append(await RESPONSE.text())
-            print(RESPONSE.status)
-        return RESULTS
+async def async_get(FINAL_URL, SESSION):
+    global aa, bb, xxx
+    async with SESSION.get(FINAL_URL) as RESPONSE:
+        if RESPONSE.status != 200:
+            bb.append(str(RESPONSE.status))
+            print(str(RESPONSE.status) + " başaramadık rıza baba "+asyncio.current_task().get_name())
+            FAILED_TASK_ = asyncio.create_task(async_get(FINAL_URL, SESSION),name=xxx)
+            xxx=xxx+1
+            await asyncio.gather(FAILED_TASK)
+            return await RESPONSE.text()
+        elif RESPONSE.status == 200:
+            aa.append(str(RESPONSE.status))
+            print(str(RESPONSE.status), asyncio.current_task().get_name())
+            return await RESPONSE.text()
 
+async def async_main():
+    async with aiohttp.ClientSession() as SESSION:
+        TASKS_ = []
+        for FINAL_URL in URLS:
+            TASKS_.append(asyncio.create_task(async_get(FINAL_URL, SESSION)))
+        print("TASKS_: "+str(len(TASKS_)))
+        return await asyncio.gather(*TASKS_)
 
 def listing_cards(RESULTS):
 #   print("Sonuçlar ayıklanıyor")
 #   Filtering htmls and saving product cards.
+    print("len(RESULTS): "+str(len(RESULTS)))
     for RESULT in RESULTS: 
-        CARDS.extend(BeautifulSoup(RESULT, features="html.parser").find_all('div', {'data-asin': True,  'data-component-type': 's-search-result'}))
+        try:
+            print("result: "+ str(len(RESULT)))
+            CARDS.extend(BeautifulSoup(RESULT, features="html.parser").find_all('div', {'data-asin': True,  'data-component-type': 's-search-result'}))
+        except:
+            print("result: "+str(RESULT))
     return CARDS
 
 def processing_cards(CARDS):
@@ -142,8 +163,12 @@ def main(URL):
 
     PRODUCT_COUNT = str(len(PRODUCTS))
     del URLS, DATA, CARDS, TASKS_
-    return PRODUCTS, PRODUCT_COUNT, str(round(total_time, 0))
+    print("aa: "+str(len(aa)))
+    print("bb: "+str(len(bb)))
+    print("PRODUCT_COUNT: "+PRODUCT_COUNT)
+    #return PRODUCTS, PRODUCT_COUNT, str(round(total_time, 0))
 
 if __name__ == "__main__":
-    #URL = "https://www.amazon.com.tr/s?i=pets&rh=n%3A20684004031&fs=true&page=2&qid=1647450852&ref=sr_pg_2"
+    URL = "https://www.amazon.com.tr/s?i=computers&bbn=12601951031&rh=n%3A12601951031%2Cp_6%3AA1UNQM1SR2CHM%7CA3O5TP4R0OZYXZ&dc&page=2&qid=1647209639&rnid=15358539031&ref=sr_pg_2"
+    URL2 = "https://www.amazon.com.tr/s?i=computers&bbn=12601898031&rh=n%3A12601898031&dc&fs=true&page=2&qid=1647450701&rnid=15358539031&ref=sr_pg_2"
     main(URL)
