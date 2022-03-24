@@ -1,25 +1,13 @@
 import time
 import asyncio
-from wsgiref import headers
 import aiohttp
 import random
 import requests
 from bs4 import BeautifulSoup
 
-aa=[]
-bb=[]
-xxx=1
-
 def get_HEADERS():
-    """     UA_LIST = [
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.1 Safari/605.1.15',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:77.0) Gecko/20100101 Firefox/77.0',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36',
-        ] """
     UA_LIST = []
-    with open('user-agents.txt','r') as USER_AGENTS:
+    with open('user-agents-updated.txt','r') as USER_AGENTS:
         for USER_AGENT in USER_AGENTS:
             UA_LIST.append(USER_AGENT[:-2])
     HEADERS = {
@@ -51,8 +39,6 @@ def number_of_pages(URL):
             del RESPONSE
 
 def generating_urls(URL, TOTAL_NUMBER_OF_PAGES):
-    #print("Kullanılacak URL'ler üretiliyor.")
-#   Generates the urls of the wanted pages to scrape
     PAGE_INDEX_OF_URL = URL.index("&page=")
     URL_PART_1 = URL[:int(PAGE_INDEX_OF_URL+6)]
     URL_PART_2 = URL[int(PAGE_INDEX_OF_URL+7):]
@@ -62,38 +48,27 @@ def generating_urls(URL, TOTAL_NUMBER_OF_PAGES):
     del URL_PART_1, URL_PART_2
 
 async def async_get(FINAL_URL, SESSION):
-    global aa, bb, xxx
-    async with SESSION.get(FINAL_URL) as RESPONSE:
-        if RESPONSE.status != 200:
-            bb.append(str(RESPONSE.status))
-            print(str(RESPONSE.status) + " başaramadık rıza baba "+asyncio.current_task().get_name())
-            FAILED_TASK_ = asyncio.create_task(async_get(FINAL_URL, SESSION),name=xxx)
-            xxx=xxx+1
-            await asyncio.gather(FAILED_TASK)
-            return await RESPONSE.text()
-        elif RESPONSE.status == 200:
-            aa.append(str(RESPONSE.status))
-            print(str(RESPONSE.status), asyncio.current_task().get_name())
-            return await RESPONSE.text()
+    while True:
+        async with SESSION.get(FINAL_URL, headers=get_HEADERS()) as RESPONSE:  
+            if RESPONSE.status == 200:
+                #print(str(RESPONSE.status), asyncio.current_task().get_name())
+                return await RESPONSE.text()
+            #print(str(RESPONSE.status), asyncio.current_task().get_name())
+            await asyncio.sleep(0.5)
 
 async def async_main():
     async with aiohttp.ClientSession() as SESSION:
         TASKS_ = []
         for FINAL_URL in URLS:
             TASKS_.append(asyncio.create_task(async_get(FINAL_URL, SESSION)))
-        print("TASKS_: "+str(len(TASKS_)))
         return await asyncio.gather(*TASKS_)
 
 def listing_cards(RESULTS):
-#   print("Sonuçlar ayıklanıyor")
-#   Filtering htmls and saving product cards.
-    print("len(RESULTS): "+str(len(RESULTS)))
-    for RESULT in RESULTS: 
+    for RESULT in RESULTS:
         try:
-            print("result: "+ str(len(RESULT)))
             CARDS.extend(BeautifulSoup(RESULT, features="html.parser").find_all('div', {'data-asin': True,  'data-component-type': 's-search-result'}))
         except:
-            print("result: "+str(RESULT))
+            continue
     return CARDS
 
 def processing_cards(CARDS):
@@ -134,9 +109,7 @@ def processing_cards(CARDS):
             PRODUCTS.append(DATA)
 
 def main(URL):
-
     global URLS, CARDS, PRODUCTS, RESULTS
-
     URLS = []
     DATA = {}
     PRODUCTS = []
@@ -144,13 +117,9 @@ def main(URL):
     TASKS_ = []
     RESULTS = []
 
-#   Retrieving total page number
     TOTAL_NUMBER_OF_PAGES = number_of_pages(URL)
-#   Iterating and generating urls with page numbers
     generating_urls(URL, TOTAL_NUMBER_OF_PAGES)
-#   Defining loop and retrieving result htmls
     start = time.time()
-    #runner(1, TOTAL_NUMBER_OF_PAGES)
     loop = asyncio.get_event_loop()
     RESULTS = loop.run_until_complete(async_main())
     finish = time.time()
@@ -163,12 +132,7 @@ def main(URL):
 
     PRODUCT_COUNT = str(len(PRODUCTS))
     del URLS, DATA, CARDS, TASKS_
-    print("aa: "+str(len(aa)))
-    print("bb: "+str(len(bb)))
-    print("PRODUCT_COUNT: "+PRODUCT_COUNT)
-    #return PRODUCTS, PRODUCT_COUNT, str(round(total_time, 0))
+    return PRODUCTS, PRODUCT_COUNT, str(round(total_time, 0))
 
 if __name__ == "__main__":
-    URL = "https://www.amazon.com.tr/s?i=computers&bbn=12601951031&rh=n%3A12601951031%2Cp_6%3AA1UNQM1SR2CHM%7CA3O5TP4R0OZYXZ&dc&page=2&qid=1647209639&rnid=15358539031&ref=sr_pg_2"
-    URL2 = "https://www.amazon.com.tr/s?i=computers&bbn=12601898031&rh=n%3A12601898031&dc&fs=true&page=2&qid=1647450701&rnid=15358539031&ref=sr_pg_2"
     main(URL)

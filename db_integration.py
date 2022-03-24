@@ -1,24 +1,31 @@
 import sqlite3
 import aiohttp_parser
 import time
+import asyncio
 
 CONN = sqlite3.connect("amazon_database.db")
 CUR = CONN.cursor()
 
+
+async def work(PRODUCT, TABLE_NAME):
+    try:
+        OLD_PRICE = CUR.execute('SELECT NEW_PRODUCT_PRICE FROM {} WHERE "DATA_ASIN"="{}"'.format(TABLE_NAME, PRODUCT["data-asin"])).fetchone()[0]
+        CUR.execute('INSERT OR REPLACE INTO {}(DATA_ASIN, PRODUCT_TITLE, PRODUCT_LINK, CURRENCY, NEW_PRODUCT_PRICE, OLD_PRODUCT_PRICE) VALUES(?,?,?,?,?,?)'.format(TABLE_NAME), (PRODUCT["data-asin"], PRODUCT["title"], PRODUCT["link"], PRODUCT["price_symbol"], PRODUCT["price"], OLD_PRICE))
+    except:
+        CUR.execute('INSERT OR REPLACE INTO {}(DATA_ASIN, PRODUCT_TITLE, PRODUCT_LINK, CURRENCY, NEW_PRODUCT_PRICE) VALUES(?,?,?,?,?)'.format(TABLE_NAME), (PRODUCT["data-asin"], PRODUCT["title"], PRODUCT["link"], PRODUCT["price_symbol"], PRODUCT["price"]))
+
+async def async_main(RES, TABLE_NAME):
+    TASKS_ = []
+    for PRODUCT in RES[0]:
+        TASKS_.append(asyncio.create_task(work(PRODUCT, TABLE_NAME)))
+    await asyncio.gather(*TASKS_)
+
 def save_results(Kategori_Adı, RES):
     TABLE_NAME = Kategori_Adı.replace(' ', '_')
     CUR.execute("CREATE TABLE IF NOT EXISTS {}(DATA_ASIN TEXT UNIQUE,  PRODUCT_TITLE TEXT, PRODUCT_LINK TEXT, CURRENCY TEXT, DISCOUNT INTEGER, OLD_PRODUCT_PRICE INTEGER, NEW_PRODUCT_PRICE INTEGER)".format(TABLE_NAME))
-    CURRENT_LIST_OF_PRODUCTS = CUR.execute('SELECT DATA_ASIN FROM {}'.format(TABLE_NAME)).fetchall()
-    for i in range(len(CURRENT_LIST_OF_PRODUCTS)):
-        CURRENT_LIST_OF_PRODUCTS[i]=CURRENT_LIST_OF_PRODUCTS[i][0]
-    CUR.execute('UPDATE {} SET OLD_PRODUCT_PRICE = NEW_PRODUCT_PRICE'.format(TABLE_NAME))
-    for PRODUCT in RES[0]:
-        if PRODUCT["data-asin"] not in CURRENT_LIST_OF_PRODUCTS:
-            CUR.execute('INSERT OR REPLACE INTO {}(DATA_ASIN, PRODUCT_TITLE, PRODUCT_LINK, CURRENCY, NEW_PRODUCT_PRICE) VALUES(?,?,?,?,?)'.format(TABLE_NAME), (PRODUCT["data-asin"], PRODUCT["title"], PRODUCT["link"], PRODUCT["price_symbol"], PRODUCT["price"]))
-        else:
-            CUR.execute('UPDATE {} SET NEW_PRODUCT_PRICE = "{}" WHERE DATA_ASIN = "{}"'.format(TABLE_NAME, PRODUCT["price"], PRODUCT["data-asin"]))
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(async_main(RES, TABLE_NAME))
     CUR.execute('UPDATE {} SET DISCOUNT = round(((OLD_PRODUCT_PRICE-NEW_PRODUCT_PRICE)/OLD_PRODUCT_PRICE)*100, 0)'.format(TABLE_NAME))  
-
 
 def main():
     TOTAL_TIME_START = time.time()
