@@ -39,25 +39,23 @@ def number_of_pages(URL):
             del RESPONSE
 
 def generating_urls(URL, TOTAL_NUMBER_OF_PAGES):
-    PAGE_INDEX_OF_URL = URL.index("&page=")
-    URL_PART_1 = URL[:int(PAGE_INDEX_OF_URL+6)]
-    URL_PART_2 = URL[int(PAGE_INDEX_OF_URL+7):]
-    del PAGE_INDEX_OF_URL
     for i in range(1, int(TOTAL_NUMBER_OF_PAGES)+1):
-        URLS.append(URL_PART_1 + str(i) + URL_PART_2)
-    del URL_PART_1, URL_PART_2
+        URLS.append(URL + "&page={}".format(i))
 
 async def async_get(FINAL_URL, SESSION):
-    while True:
+    x = 0
+    while x < 5:
         async with SESSION.get(FINAL_URL, headers=get_HEADERS()) as RESPONSE:  
             if RESPONSE.status == 200:
-                #print(str(RESPONSE.status), asyncio.current_task().get_name())
+                f.writelines((str(RESPONSE.status) + " " + asyncio.current_task().get_name()) + " " + str(x) + " " + str(FINAL_URL) +"\n")
                 return await RESPONSE.text()
-            #print(str(RESPONSE.status), asyncio.current_task().get_name())
-            await asyncio.sleep(0.5)
+            x = x+1
+            f.writelines((str(RESPONSE.status) + " " + asyncio.current_task().get_name()) + " " + str(x) + " " + str(FINAL_URL) +"\n")
+            await asyncio.sleep(0.1)
 
 async def async_main():
-    async with aiohttp.ClientSession() as SESSION:
+    CONNECTOR = aiohttp.TCPConnector(limit_per_host=20)
+    async with aiohttp.ClientSession(connector=CONNECTOR) as SESSION:
         TASKS_ = []
         for FINAL_URL in URLS:
             TASKS_.append(asyncio.create_task(async_get(FINAL_URL, SESSION)))
@@ -108,8 +106,8 @@ def processing_cards(CARDS):
             DATA = {'data-asin': DATA_ASIN, 'title': TITLE, 'link': LINK, 'price': PRICE, 'price_symbol': PRICE_SYMBOL}
             PRODUCTS.append(DATA)
 
-def main(URL):
-    global URLS, CARDS, PRODUCTS, RESULTS
+def main(Kategori_Adı, URL):
+    global URLS, CARDS, PRODUCTS, RESULTS, f
     URLS = []
     DATA = {}
     PRODUCTS = []
@@ -117,9 +115,13 @@ def main(URL):
     TASKS_ = []
     RESULTS = []
 
+    f = open('log5.txt','a')
+    f.writelines(Kategori_Adı+"\n")
+
     TOTAL_NUMBER_OF_PAGES = number_of_pages(URL)
     generating_urls(URL, TOTAL_NUMBER_OF_PAGES)
     start = time.time()
+    asyncio.new_event_loop()
     loop = asyncio.get_event_loop()
     RESULTS = loop.run_until_complete(async_main())
     finish = time.time()
@@ -131,8 +133,9 @@ def main(URL):
     #print("Saat : " + str(time.localtime().tm_hour) + "." + str(time.localtime().tm_min) + "\tTaranan ürün sayısı : " + str(len(PRODUCTS)) + "\t" + "\tToplam işlem süresi : " + str(total_time))
 
     PRODUCT_COUNT = str(len(PRODUCTS))
+    CARDS_COUNT = str(len(CARDS))
     del URLS, DATA, CARDS, TASKS_
-    return PRODUCTS, PRODUCT_COUNT, str(round(total_time, 0))
+    return PRODUCTS, CARDS_COUNT, PRODUCT_COUNT, str(round((total_time),2))
 
 if __name__ == "__main__":
-    main(URL)
+    main(Kategori_Adı, URL)
