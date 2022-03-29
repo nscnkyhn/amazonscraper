@@ -115,7 +115,7 @@ def main(Kategori_Adı, URL):
     TASKS_ = []
     RESULTS = []
 
-    f = open('log5.txt','a')
+    f = open('log.txt','a')
     f.writelines(Kategori_Adı+"\n")
 
     TOTAL_NUMBER_OF_PAGES = number_of_pages(URL)
